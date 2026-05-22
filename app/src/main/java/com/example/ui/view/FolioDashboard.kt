@@ -158,82 +158,127 @@ fun TerminalHeader(
         modifier = Modifier
             .fillMaxWidth()
             .statusBarsPadding()
-            .border(width = 1.dp, color = GridBorder)
-            .background(TerminalCoal)
-            .padding(horizontal = 16.dp, vertical = 12.dp),
+            .padding(horizontal = 16.dp, vertical = 14.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Column {
-            Row(verticalAlignment = Alignment.CenterVertically) {
+        // Brand logo & title
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(32.dp)
+                    .background(Color.White, RoundedCornerShape(8.dp)),
+                contentAlignment = Alignment.Center
+            ) {
                 Text(
-                    text = "FOLIO_AI//TERMINAL",
-                    fontFamily = FontFamily.Monospace,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 18.sp,
-                    color = CyberGreen
+                    text = "F",
+                    color = Color(0xFF0A0A0B),
+                    fontWeight = FontWeight.Black,
+                    fontSize = 20.sp,
+                    fontFamily = FontFamily.SansSerif
                 )
-                Spacer(modifier = Modifier.width(8.dp))
-                if (isSimulatorActive) {
-                    Box(
-                        modifier = Modifier
-                            .size(8.dp)
-                            .drawBehind {
-                                drawCircle(
-                                    color = CyberGreen,
-                                    alpha = alphaColor,
-                                    radius = size.minDimension / 2
-                                )
-                            }
+            }
+            Column {
+                Text(
+                    buildAnnotatedString {
+                        withStyle(style = androidx.compose.ui.text.SpanStyle(fontWeight = FontWeight.Bold, color = Color.White, fontStyle = androidx.compose.ui.text.font.FontStyle.Italic)) {
+                            append("FOLIO")
+                        }
+                        withStyle(style = androidx.compose.ui.text.SpanStyle(fontWeight = FontWeight.Bold, color = CyberGreen)) {
+                            append("AI")
+                        }
+                    },
+                    fontSize = 18.sp,
+                    letterSpacing = (-0.5).sp
+                )
+                Text(
+                    text = "ACTIVE COMMAND PROTOCOL",
+                    style = TextStyle(
+                        fontFamily = FontFamily.Monospace,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 8.sp,
+                        letterSpacing = 1.sp,
+                        color = TextGray
                     )
-                    Spacer(modifier = Modifier.width(4.dp))
+                )
+            }
+        }
+
+        // Live stats indicator
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            // Live Status Metadata Block
+            Column(
+                horizontalAlignment = Alignment.End,
+                verticalArrangement = Arrangement.Center
+            ) {
+                Text(
+                    text = "INGESTION STREAM",
+                    style = TextStyle(
+                        fontFamily = FontFamily.SansSerif,
+                        fontWeight = FontWeight.Black,
+                        fontSize = 8.sp,
+                        letterSpacing = 1.5.sp,
+                        color = TextGray
+                    )
+                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    if (isSimulatorActive) {
+                        Box(
+                            modifier = Modifier
+                                .size(6.dp)
+                                .drawBehind {
+                                    drawCircle(
+                                        color = CyberGreen,
+                                        alpha = alphaColor,
+                                        radius = size.minDimension / 2
+                                    )
+                                }
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                    }
                     Text(
-                        text = "LIVE FEED",
-                        style = TextStyle(fontFamily = FontFamily.Monospace, fontSize = 9.sp, color = CyberGreen)
+                        text = if (isSimulatorActive) "LIVE · SIMULATING" else "STREAM IDLE",
+                        style = TextStyle(
+                            fontFamily = FontFamily.Monospace,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 11.sp,
+                            color = if (isSimulatorActive) CyberGreen else TextGray
+                        )
                     )
                 }
             }
-            Text(
-                text = "Narratives-driven Investment engine",
-                style = TextStyle(fontFamily = FontFamily.Monospace, fontSize = 10.sp, color = TextGray)
-            )
-        }
 
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            // Simulator switch
-            Button(
+            // Simulator Control
+            IconButton(
                 onClick = onSimulatorToggle,
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = if (isSimulatorActive) GridBorder else ModuleSlate,
-                    contentColor = if (isSimulatorActive) CyberGreen else TextGray
-                ),
-                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
-                shape = RoundedCornerShape(4.dp),
                 modifier = Modifier
-                    .height(32.dp)
+                    .size(36.dp)
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(if (isSimulatorActive) CyberGreen.copy(alpha = 0.15f) else ModuleSlate)
+                    .border(1.dp, if (isSimulatorActive) CyberGreen else GridBorder, RoundedCornerShape(8.dp))
                     .testTag("simulator_toggle_button")
             ) {
                 Icon(
                     imageVector = if (isSimulatorActive) Icons.Default.Refresh else Icons.Default.PlayArrow,
                     contentDescription = "Toggle simulator stream",
-                    modifier = Modifier.size(14.dp)
-                )
-                Spacer(modifier = Modifier.width(4.dp))
-                Text(
-                    text = if (isSimulatorActive) "STREAMING" else "SIMULATE",
-                    fontFamily = FontFamily.Monospace,
-                    fontSize = 10.sp
+                    tint = if (isSimulatorActive) CyberGreen else TextGray,
+                    modifier = Modifier.size(16.dp)
                 )
             }
 
-            Spacer(modifier = Modifier.width(12.dp))
-
-            // Alert indicator
+            // Alerts bell view
             Box(
                 modifier = Modifier
                     .size(36.dp)
-                    .clip(CircleShape)
+                    .clip(RoundedCornerShape(8.dp))
                     .background(ModuleSlate)
+                    .border(1.dp, if (unreadAlerts > 0) CyberAmber else GridBorder, RoundedCornerShape(8.dp))
                     .clickable { onTabSelect() }
                     .testTag("alerts_bell_icon"),
                 contentAlignment = Alignment.Center
@@ -242,7 +287,7 @@ fun TerminalHeader(
                     imageVector = Icons.Default.Notifications,
                     contentDescription = "Alerts view",
                     tint = if (unreadAlerts > 0) CyberAmber else TextGray,
-                    modifier = Modifier.size(18.dp)
+                    modifier = Modifier.size(16.dp)
                 )
                 if (unreadAlerts > 0) {
                     Box(
@@ -276,16 +321,14 @@ fun TickerSelectorRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 10.dp, horizontal = 12.dp)
-            .border(1.dp, GridBorder, RoundedCornerShape(4.dp))
+            .padding(vertical = 8.dp, horizontal = 12.dp)
+            .border(1.dp, GridBorder, RoundedCornerShape(12.dp))
             .background(TerminalCoal)
             .padding(4.dp),
-        horizontalArrangement = Arrangement.spacedBy(8.dp)
+        horizontalArrangement = Arrangement.spacedBy(6.dp)
     ) {
         theses.forEach { thesis ->
             val isSelected = thesis.symbol == selectedSymbol
-            val bgColor = if (isSelected) ModuleSlate else Color.Transparent
-            val borderCol = if (isSelected) CyberGreen else GridBorder
             
             val trColor = when (thesis.trajectory) {
                 "UPGOING" -> CyberGreen
@@ -296,11 +339,11 @@ fun TickerSelectorRow(
             Box(
                 modifier = Modifier
                     .weight(1f)
-                    .clip(RoundedCornerShape(4.dp))
-                    .background(bgColor)
-                    .border(1.dp, borderCol, RoundedCornerShape(4.dp))
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(if (isSelected) Color.White else Color.Transparent)
+                    .border(1.dp, if (isSelected) Color.White else GridBorder, RoundedCornerShape(10.dp))
                     .clickable { onSelected(thesis.symbol) }
-                    .padding(vertical = 8.dp)
+                    .padding(vertical = 10.dp)
                     .testTag("ticker_select_${thesis.symbol}"),
                 contentAlignment = Alignment.Center
             ) {
@@ -312,9 +355,9 @@ fun TickerSelectorRow(
                         Text(
                             text = thesis.symbol,
                             fontFamily = FontFamily.Monospace,
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 12.sp,
-                            color = if (isSelected) Color.White else TextGray
+                            fontWeight = FontWeight.Black,
+                            fontSize = 13.sp,
+                            color = if (isSelected) Color(0xFF0A0A0B) else Color.White
                         )
                         Spacer(modifier = Modifier.width(4.dp))
                         Text(
@@ -325,8 +368,8 @@ fun TickerSelectorRow(
                             },
                             fontFamily = FontFamily.Monospace,
                             fontWeight = FontWeight.Bold,
-                            fontSize = 10.sp,
-                            color = trColor
+                            fontSize = 9.sp,
+                            color = if (isSelected) Color(0xFF0A0A0B) else trColor
                         )
                     }
                     Spacer(modifier = Modifier.height(2.dp))
@@ -335,14 +378,15 @@ fun TickerSelectorRow(
                             text = "CIV:",
                             fontFamily = FontFamily.Monospace,
                             fontSize = 8.sp,
-                            color = TextGray
+                            color = if (isSelected) Color(0xFF64748B) else TextGray
                         )
+                        Spacer(modifier = Modifier.width(2.dp))
                         Text(
-                            text = "${thesis.convictionScore}/100",
+                            text = "${thesis.convictionScore}",
                             fontFamily = FontFamily.Monospace,
                             fontWeight = FontWeight.Bold,
                             fontSize = 10.sp,
-                            color = if (isSelected) CyberGreen else TextGray
+                            color = if (isSelected) Color(0xFF0A0A0B) else CyberGreen
                         )
                     }
                 }
@@ -367,25 +411,38 @@ fun ThesisTabContent(
 
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
+        verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         // Warning Banner if API Key is Placeholder
         if (!isKeyValid) {
             item {
                 Card(
                     modifier = Modifier.fillMaxWidth().testTag("api_key_caution_card"),
-                    colors = CardDefaults.cardColors(containerColor = CyberAmber.copy(alpha = 0.15f)),
-                    border = borderColor(CyberAmber)
+                    colors = CardDefaults.cardColors(containerColor = CyberAmber.copy(alpha = 0.05f)),
+                    shape = RoundedCornerShape(16.dp),
+                    border = borderColor(CyberAmber.copy(alpha = 0.3f))
                 ) {
-                    Row(modifier = Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Default.Warning, contentDescription = "Security Alert", tint = CyberAmber, modifier = Modifier.size(20.dp))
-                        Spacer(modifier = Modifier.width(10.dp))
+                    Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Box(
+                            modifier = Modifier
+                                .size(32.dp)
+                                .background(CyberAmber.copy(alpha = 0.15f), RoundedCornerShape(8.dp)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(Icons.Default.Warning, contentDescription = "Security Alert", tint = CyberAmber, modifier = Modifier.size(16.dp))
+                        }
+                        Spacer(modifier = Modifier.width(12.dp))
                         Column {
-                            Text("PROTOTYPE SIMULATOR ACTIVE", style = MaterialTheme.typography.titleSmall, color = CyberAmber)
                             Text(
-                                "Using advanced locally-engineered heuristics. Please bind your GEMINI_API_KEY inside the AI Studio Secrets panel to connect live multi-source reasoning.",
+                                text = "PROTOTYPE SIMULATOR ACTIVE", 
+                                style = TextStyle(fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Black, fontSize = 11.sp, letterSpacing = 1.sp),
+                                color = CyberAmber
+                            )
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text(
+                                text = "Using advanced locally-engineered heuristics. Please bind your GEMINI_API_KEY inside the AI Studio Secrets panel to connect live multi-source reasoning.",
                                 style = MaterialTheme.typography.bodyMedium,
-                                color = Color.White.copy(alpha = 0.85f)
+                                color = TextGray
                             )
                         }
                     }
@@ -398,47 +455,114 @@ fun ThesisTabContent(
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 colors = CardDefaults.cardColors(containerColor = TerminalCoal),
+                shape = RoundedCornerShape(24.dp),
                 border = borderColor(GridBorder)
             ) {
-                Column(modifier = Modifier.padding(16.dp)) {
+                Column(modifier = Modifier.padding(20.dp)) {
+                    // Header Tag & Company name
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Column {
-                            Text(
-                                text = "LIVING THESIS MATRIX: ${thesis.symbol}",
-                                style = TextStyle(fontFamily = FontFamily.Monospace, fontSize = 11.sp, color = CyberGreen)
-                            )
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(4.dp))
+                                    .background(GridBorder)
+                                    .padding(horizontal = 8.dp, vertical = 2.dp)
+                            ) {
+                                Text(
+                                    text = "$${thesis.symbol}",
+                                    style = TextStyle(
+                                        fontFamily = FontFamily.Monospace,
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 11.sp,
+                                        color = Color.White
+                                    )
+                                )
+                            }
                             Text(
                                 text = thesis.name,
-                                style = TextStyle(fontFamily = FontFamily.SansSerif, fontWeight = FontWeight.Bold, fontSize = 20.sp, color = Color.White)
+                                style = TextStyle(
+                                    fontFamily = FontFamily.SansSerif,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 16.sp,
+                                    fontStyle = androidx.compose.ui.text.font.FontStyle.Italic,
+                                    color = TextGray
+                                )
                             )
                         }
-                        
-                        // Conviction Score Badge with Indicator
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(
-                                text = "${thesis.convictionScore}",
-                                fontFamily = FontFamily.Monospace,
-                                fontWeight = FontWeight.ExtraBold,
-                                fontSize = 34.sp,
-                                color = CyberGreen
-                            )
-                            Text(
-                                text = "/100",
-                                fontFamily = FontFamily.Monospace,
-                                fontSize = 14.sp,
-                                color = TextGray,
-                                modifier = Modifier.padding(top = 10.dp)
-                            )
+
+                        // level pill indicators from HTML theme
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(3.dp)
+                        ) {
+                            val filledBlocks = ((thesis.convictionScore) / 20).coerceAtLeast(1)
+                            for (i in 1..5) {
+                                val isFilled = i <= filledBlocks
+                                Box(
+                                    modifier = Modifier
+                                        .width(12.dp)
+                                        .height(4.dp)
+                                        .background(
+                                            color = if (isFilled) CyberGreen else CyberGreen.copy(alpha = 0.2f),
+                                            shape = RoundedCornerShape(2.dp)
+                                        )
+                                )
+                            }
                         }
                     }
 
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    // Huge Bold Conviction display
+                    Text(
+                        text = "CONVICTION: ${thesis.convictionScore}",
+                        style = TextStyle(
+                            fontFamily = FontFamily.SansSerif,
+                            fontWeight = FontWeight.Black,
+                            fontSize = 32.sp,
+                            letterSpacing = (-1).sp,
+                            color = Color.White
+                        )
+                    )
+
                     Spacer(modifier = Modifier.height(12.dp))
+
+                    // Trajectory Comment Callout
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(Color.White.copy(alpha = 0.05f), RoundedCornerShape(14.dp))
+                            .border(1.dp, Color.White.copy(alpha = 0.08f), RoundedCornerShape(14.dp))
+                            .padding(14.dp)
+                    ) {
+                        Text(
+                            text = buildAnnotatedString {
+                                withStyle(style = androidx.compose.ui.text.SpanStyle(fontWeight = FontWeight.Bold, color = CyberGreen)) {
+                                    append("Trajectory: ")
+                                }
+                                append(
+                                    when (thesis.trajectory) {
+                                        "UPGOING" -> "Accelerating signal velocity indicates highly positive thematic alignment and upward momentum."
+                                        "DOWNGOING" -> "Cooling structural margins indicate near-term resistance and declining momentum vectors."
+                                        else -> "Neutral trading bounds suggest range-bound pricing and quiet pipeline activity."
+                                    }
+                                )
+                            },
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = TextGray
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(16.dp))
                     HorizontalDivider(color = GridBorder)
-                    Spacer(modifier = Modifier.height(12.dp))
+                    Spacer(modifier = Modifier.height(14.dp))
 
                     // Metric Quad Rows
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
@@ -453,7 +577,7 @@ fun ThesisTabContent(
                             }
                         )
                         MetricColumn(
-                            heading = "TRAJECTORY",
+                            heading = "THEMATIC TRAJECTORY",
                             value = thesis.trajectory,
                             color = when (thesis.trajectory) {
                                 "UPGOING" -> CyberGreen
@@ -468,14 +592,20 @@ fun ThesisTabContent(
                         )
                     }
 
-                    Spacer(modifier = Modifier.height(18.dp))
+                    Spacer(modifier = Modifier.height(20.dp))
 
                     // Render Conviction History Timeline Chart
                     Text(
                         text = "CONVICTION EVOLUTION (TIME GRAPH)",
-                        style = TextStyle(fontFamily = FontFamily.Monospace, fontSize = 10.sp, color = TextGray)
+                        style = TextStyle(
+                            fontFamily = FontFamily.Monospace,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 9.sp,
+                            letterSpacing = 1.2.sp,
+                            color = TextGray
+                        )
                     )
-                    Spacer(modifier = Modifier.height(6.dp))
+                    Spacer(modifier = Modifier.height(8.dp))
                     ConvictionEvolutionChart(snapshots = snapshots)
                 }
             }
@@ -486,27 +616,38 @@ fun ThesisTabContent(
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 colors = CardDefaults.cardColors(containerColor = TerminalCoal),
+                shape = RoundedCornerShape(24.dp),
                 border = borderColor(GridBorder)
             ) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Default.Info, contentDescription = "Synopsis", tint = CyberGreen, modifier = Modifier.size(16.dp))
-                        Spacer(modifier = Modifier.width(6.dp))
+                Column(modifier = Modifier.padding(18.dp)) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(24.dp)
+                                .background(CyberGreen.copy(alpha = 0.15f), RoundedCornerShape(6.dp)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(Icons.Default.Info, contentDescription = "Synopsis", tint = CyberGreen, modifier = Modifier.size(13.dp))
+                        }
                         Text(
                             text = "EVOLVING MASTER SYNOPSIS",
                             fontFamily = FontFamily.Monospace,
                             fontWeight = FontWeight.Bold,
                             fontSize = 11.sp,
+                            letterSpacing = 1.sp,
                             color = CyberGreen
                         )
                     }
-                    Spacer(modifier = Modifier.height(8.dp))
+                    Spacer(modifier = Modifier.height(12.dp))
                     Text(
                         text = thesis.synopsis,
                         fontFamily = FontFamily.SansSerif,
                         fontSize = 14.sp,
                         lineHeight = 22.sp,
-                        color = Color.White.copy(alpha = 0.9f)
+                        color = Color.White.copy(alpha = 0.95f)
                     )
                 }
             }
@@ -522,23 +663,25 @@ fun ThesisTabContent(
             Card(
                 modifier = Modifier.fillMaxWidth().height(260.dp),
                 colors = CardDefaults.cardColors(containerColor = TerminalCoal),
+                shape = RoundedCornerShape(24.dp),
                 border = borderColor(GridBorder)
             ) {
-                Column(modifier = Modifier.padding(16.dp)) {
+                Column(modifier = Modifier.padding(18.dp)) {
                     Text(
                         text = "NARRATIVE COUPLING RELATION_GRAPH",
                         fontFamily = FontFamily.Monospace,
                         fontWeight = FontWeight.Bold,
                         fontSize = 11.sp,
+                        letterSpacing = 1.sp,
                         color = CyberCyan
                     )
                     Text(
                         text = "Visual map of digested signals linking directly to focal conviction points",
                         fontFamily = FontFamily.SansSerif,
-                        fontSize = 10.sp,
+                        fontSize = 11.sp,
                         color = TextGray
                     )
-                    Spacer(modifier = Modifier.height(12.dp))
+                    Spacer(modifier = Modifier.height(14.dp))
                     
                     // Render Visual Graph inside Canvas!
                     NarrativeGraphCanvas(thesis = thesis, events = events)
@@ -556,8 +699,14 @@ fun ThesisTabContent(
 @Composable
 fun MetricColumn(heading: String, value: String, color: Color) {
     Column {
-        Text(text = heading, fontFamily = FontFamily.Monospace, fontSize = 9.sp, color = TextGray)
-        Spacer(modifier = Modifier.height(2.dp))
+        Text(
+            text = heading, 
+            fontFamily = FontFamily.Monospace, 
+            fontWeight = FontWeight.Bold,
+            fontSize = 9.sp, 
+            color = TextGray
+        )
+        Spacer(modifier = Modifier.height(4.dp))
         Text(
             text = value,
             fontFamily = FontFamily.Monospace,
@@ -574,7 +723,7 @@ fun ConvictionEvolutionChart(snapshots: List<ThesisSnapshot>) {
         modifier = Modifier
             .fillMaxWidth()
             .height(90.dp)
-            .border(1.dp, GridBorder)
+            .border(1.dp, GridBorder, RoundedCornerShape(8.dp))
             .background(HorizonBlack)
     ) {
         val points = snapshots.takeLast(10)
@@ -645,39 +794,62 @@ fun BullBearSplitViews(thesis: TickerThesis) {
     val bulls = thesis.bullPoints.split("||").filter { it.trim().isNotEmpty() }
     val bears = thesis.bearPoints.split("||").filter { it.trim().isNotEmpty() }
 
-    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
         // Bullish Catalysts Case
-        Card(
-            modifier = Modifier.weight(1f),
-            colors = CardDefaults.cardColors(containerColor = TerminalCoal),
-            border = borderColor(CyberGreen.copy(alpha = 0.4f))
+        Box(
+            modifier = Modifier
+                .weight(1f)
+                .clip(RoundedCornerShape(16.dp))
+                .background(TerminalCoal)
+                .drawBehind {
+                    // Left 3dp border line
+                    drawRect(
+                        color = CyberGreen,
+                        topLeft = Offset(0f, 0f),
+                        size = androidx.compose.ui.geometry.Size(3.dp.toPx(), size.height)
+                    )
+                }
+                .border(width = 1.dp, color = GridBorder, shape = RoundedCornerShape(16.dp))
+                .padding(start = 14.dp, top = 14.dp, end = 12.dp, bottom = 14.dp)
         ) {
-            Column(modifier = Modifier.padding(12.dp)) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
+            Column {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically, 
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
                     Icon(
                         imageVector = Icons.Default.CheckCircle,
                         contentDescription = "Bull Case",
                         tint = CyberGreen,
                         modifier = Modifier.size(13.dp)
                     )
-                    Spacer(modifier = Modifier.width(4.dp))
                     Text(
                         text = "BULL CATALYSTS",
                         fontFamily = FontFamily.Monospace,
                         fontWeight = FontWeight.Bold,
                         fontSize = 11.sp,
+                        letterSpacing = 1.sp,
                         color = CyberGreen
                     )
                 }
-                Spacer(modifier = Modifier.height(10.dp))
-                bulls.forEach { bp ->
-                    Row(modifier = Modifier.padding(vertical = 4.dp), verticalAlignment = Alignment.Top) {
-                        Text("▲", color = CyberGreen, fontSize = 10.sp, modifier = Modifier.padding(end = 6.dp))
-                        Text(
-                            text = bp,
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = Color.White.copy(alpha = 0.9f)
-                        )
+                Spacer(modifier = Modifier.height(12.dp))
+                bulls.forEachIndexed { idx, bp ->
+                    Column(modifier = Modifier.padding(vertical = 4.dp)) {
+                        Row(verticalAlignment = Alignment.Top) {
+                            Text(
+                                text = "0${idx + 1}.",
+                                fontFamily = FontFamily.Monospace,
+                                fontWeight = FontWeight.Bold,
+                                color = Color.White,
+                                fontSize = 11.sp,
+                                modifier = Modifier.padding(end = 6.dp)
+                            )
+                            Text(
+                                text = bp,
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = TextGray
+                            )
+                        }
                     }
                 }
                 if (bulls.isEmpty()) {
@@ -687,37 +859,60 @@ fun BullBearSplitViews(thesis: TickerThesis) {
         }
 
         // Bearish Threats Case
-        Card(
-            modifier = Modifier.weight(1f),
-            colors = CardDefaults.cardColors(containerColor = TerminalCoal),
-            border = borderColor(CyberRed.copy(alpha = 0.4f))
+        Box(
+            modifier = Modifier
+                .weight(1f)
+                .clip(RoundedCornerShape(16.dp))
+                .background(TerminalCoal)
+                .drawBehind {
+                    // Left 3dp border line
+                    drawRect(
+                        color = CyberRed,
+                        topLeft = Offset(0f, 0f),
+                        size = androidx.compose.ui.geometry.Size(3.dp.toPx(), size.height)
+                    )
+                }
+                .border(width = 1.dp, color = GridBorder, shape = RoundedCornerShape(16.dp))
+                .padding(start = 14.dp, top = 14.dp, end = 12.dp, bottom = 14.dp)
         ) {
-            Column(modifier = Modifier.padding(12.dp)) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
+            Column {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
                     Icon(
                         imageVector = Icons.Default.Warning,
                         contentDescription = "Bear Case",
                         tint = CyberRed,
                         modifier = Modifier.size(13.dp)
                     )
-                    Spacer(modifier = Modifier.width(4.dp))
                     Text(
                         text = "BEARISH RISKS",
                         fontFamily = FontFamily.Monospace,
                         fontWeight = FontWeight.Bold,
                         fontSize = 11.sp,
+                        letterSpacing = 1.sp,
                         color = CyberRed
                     )
                 }
-                Spacer(modifier = Modifier.height(10.dp))
-                bears.forEach { bp ->
-                    Row(modifier = Modifier.padding(vertical = 4.dp), verticalAlignment = Alignment.Top) {
-                        Text("▼", color = CyberRed, fontSize = 10.sp, modifier = Modifier.padding(end = 6.dp))
-                        Text(
-                            text = bp,
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = Color.White.copy(alpha = 0.9f)
-                        )
+                Spacer(modifier = Modifier.height(12.dp))
+                bears.forEachIndexed { idx, bp ->
+                    Column(modifier = Modifier.padding(vertical = 4.dp)) {
+                        Row(verticalAlignment = Alignment.Top) {
+                            Text(
+                                text = "0${idx + 1}.",
+                                fontFamily = FontFamily.Monospace,
+                                fontWeight = FontWeight.Bold,
+                                color = Color.White,
+                                fontSize = 11.sp,
+                                modifier = Modifier.padding(end = 6.dp)
+                            )
+                            Text(
+                                text = bp,
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = TextGray
+                            )
+                        }
                     }
                 }
                 if (bears.isEmpty()) {
@@ -1510,51 +1705,60 @@ fun TerminalNavBar(
     activeTab: String,
     onTabSelected: (String) -> Unit
 ) {
-    NavigationBar(
-        modifier = Modifier
-            .border(width = 1.dp, color = GridBorder)
-            .windowInsetsPadding(WindowInsets.navigationBars),
-        containerColor = TerminalCoal
-    ) {
-        val tabList = listOf(
-            TabItem("THESIS", Icons.Default.Info, "Thesis Matrices"),
-            TabItem("PIPELINE", Icons.Default.List, "News Ingestion"),
-            TabItem("COPILOT", Icons.Default.Face, "Copilot AI"),
-            TabItem("ALERTS", Icons.Default.Notifications, "Adaptive Alerts")
-        )
+    val tabList = listOf(
+        TabItem("THESIS", Icons.Default.Info, "Thesis Matrices"),
+        TabItem("PIPELINE", Icons.Default.List, "News Ingestion"),
+        TabItem("COPILOT", Icons.Default.Face, "Copilot AI"),
+        TabItem("ALERTS", Icons.Default.Notifications, "Adaptive Alerts")
+    )
 
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(HorizonBlack)
+            .border(width = 1.dp, color = GridBorder)
+            .windowInsetsPadding(WindowInsets.navigationBars)
+            .padding(horizontal = 8.dp, vertical = 8.dp),
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
         tabList.forEach { tab ->
             val isSelected = activeTab == tab.id
-            NavigationBarItem(
-                selected = isSelected,
-                onClick = { onTabSelected(tab.id) },
-                icon = { 
+            
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .height(54.dp)
+                    .clip(RoundedCornerShape(16.dp))
+                    .background(if (isSelected) Color.White else TerminalCoal)
+                    .border(width = 1.dp, color = if (isSelected) Color.White else GridBorder, shape = RoundedCornerShape(16.dp))
+                    .clickable { onTabSelected(tab.id) }
+                    .testTag("nav_item_${tab.id.lowercase()}"),
+                contentAlignment = Alignment.Center
+            ) {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center
+                ) {
                     Icon(
-                        imageVector = tab.icon, 
+                        imageVector = tab.icon,
                         contentDescription = tab.label,
-                        tint = if (isSelected) CyberGreen else TextGray
-                    ) 
-                },
-                label = { 
+                        tint = if (isSelected) Color(0xFF0A0A0B) else TextGray,
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(modifier = Modifier.height(3.dp))
                     Text(
-                        text = tab.id, 
+                        text = tab.id,
                         style = TextStyle(
-                            fontFamily = FontFamily.Monospace, 
-                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                            fontSize = 9.sp, 
-                            color = if (isSelected) CyberGreen else TextGray
+                            fontFamily = FontFamily.Monospace,
+                            fontWeight = if (isSelected) FontWeight.Black else FontWeight.Bold,
+                            fontSize = 8.sp,
+                            letterSpacing = 0.5.sp,
+                            color = if (isSelected) Color(0xFF0A0A0B) else TextGray
                         )
-                    ) 
-                },
-                colors = NavigationBarItemDefaults.colors(
-                    indicatorColor = ModuleSlate,
-                    selectedIconColor = CyberGreen,
-                    unselectedIconColor = TextGray,
-                    selectedTextColor = CyberGreen,
-                    unselectedTextColor = TextGray
-                ),
-                modifier = Modifier.testTag("nav_item_${tab.id.lowercase()}")
-            )
+                    )
+                }
+            }
         }
     }
 }
