@@ -1,0 +1,6 @@
+{
+  "name": "FolioAI",
+  "description": "An AI-native financial intelligence terminal that continuously ingests real-time news transcripts and SEC filings to evolve and track investment theses.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
