@@ -14,7 +14,8 @@ data class TickerThesis(
     val bullPoints: String, // Delimited by ||
     val bearPoints: String, // Delimited by ||
     val riskProfile: String, // "LOW", "MEDIUM", "HIGH", "CRITICAL"
-    val trajectory: String // "UPGOING", "DOWNGOING", "STABLE"
+    val trajectory: String, // "UPGOING", "DOWNGOING", "STABLE"
+    val isWatchlisted: Boolean = false
 )
 
 @Entity(tableName = "market_events")
@@ -28,7 +29,9 @@ data class MarketEvent(
     val relevanceScore: Int, // 0 - 100
     val sentimentScore: Int, // -10 to +10
     val impactReasoning: String,
-    val signalClustered: String? = null // For anomaly/clustering grouping, null if standard event
+    val signalClustered: String? = null, // For anomaly/clustering grouping, null if standard event
+    val socialSentimentScore: Int = 0,   // -100 to +100 (%)
+    val socialSourceBreakdown: String = "" // Breakdown text, e.g. "X: +35% | Reddit: +10% | Discord: -5%"
 )
 
 @Entity(tableName = "thesis_snapshots")
@@ -48,3 +51,16 @@ data class WatchlistAlert(
     val severity: String, // "INFO", "WARNING", "CRITICAL"
     val isRead: Boolean = false
 )
+
+@Entity(tableName = "scenario_simulations")
+data class ScenarioSimulation(
+    @PrimaryKey(autoGenerate = true) val id: Int = 0,
+    val title: String,
+    val description: String,
+    val macroVariables: String, // Rates:-0.50%||Demand:+10%||SupplyCosts:+15%
+    val resultComments: String,
+    val scoreChanges: String, // NVDA:-12||AAPL:+4||MSFT:+2
+    val portfolioImpact: String,
+    val timestamp: Long
+)
+

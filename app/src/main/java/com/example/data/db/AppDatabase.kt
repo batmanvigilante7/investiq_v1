@@ -5,6 +5,7 @@ import com.example.data.model.TickerThesis
 import com.example.data.model.MarketEvent
 import com.example.data.model.ThesisSnapshot
 import com.example.data.model.WatchlistAlert
+import com.example.data.model.ScenarioSimulation
 import kotlinx.coroutines.flow.Flow
 
 @Dao
@@ -23,6 +24,9 @@ interface TickerThesisDao {
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertThesis(thesis: TickerThesis)
+
+    @Query("UPDATE ticker_theses SET isWatchlisted = :isWatchlisted WHERE symbol = :symbol")
+    suspend fun updateWatchlistStatus(symbol: String, isWatchlisted: Boolean)
 
     @Delete
     suspend fun deleteThesis(thesis: TickerThesis)
@@ -73,12 +77,25 @@ interface WatchlistAlertDao {
     suspend fun clearAllAlerts()
 }
 
+@Dao
+interface ScenarioSimulationDao {
+    @Query("SELECT * FROM scenario_simulations ORDER BY timestamp DESC")
+    fun getAllScenarios(): Flow<List<ScenarioSimulation>>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertScenario(scenario: ScenarioSimulation): Long
+
+    @Query("DELETE FROM scenario_simulations WHERE id = :id")
+    suspend fun deleteScenario(id: Int)
+}
+
 @Database(
     entities = [
         TickerThesis::class,
         MarketEvent::class,
         ThesisSnapshot::class,
-        WatchlistAlert::class
+        WatchlistAlert::class,
+        ScenarioSimulation::class
     ],
     version = 1,
     exportSchema = false
@@ -88,6 +105,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun marketEventDao(): MarketEventDao
     abstract fun thesisSnapshotDao(): ThesisSnapshotDao
     abstract fun watchlistAlertDao(): WatchlistAlertDao
+    abstract fun scenarioSimulationDao(): ScenarioSimulationDao
 
     companion object {
         @Volatile

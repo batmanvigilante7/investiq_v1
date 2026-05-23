@@ -58,6 +58,11 @@ class FolioViewModel(application: Application) : AndroidViewModel(application) {
     val alerts: StateFlow<List<WatchlistAlert>> = repository.allAlerts
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
+    val scenarios: StateFlow<List<com.example.data.model.ScenarioSimulation>> = repository.allScenarios
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    val isSimulatingScenario = MutableStateFlow(false)
+
     // Active screen flows
     val activeThesis: StateFlow<TickerThesis?> = selectedSymbol
         .flatMapLatest { repository.getThesisBySymbol(it) }
@@ -93,6 +98,37 @@ class FolioViewModel(application: Application) : AndroidViewModel(application) {
             } finally {
                 isIngesting.value = false
             }
+        }
+    }
+
+    fun toggleWatchlist(symbol: String, isWatchlisted: Boolean) {
+        viewModelScope.launch {
+            repository.toggleWatchlist(symbol, isWatchlisted)
+        }
+    }
+
+    fun addCustomTicker(symbol: String, name: String) {
+        viewModelScope.launch {
+            repository.addCustomTicker(symbol, name)
+        }
+    }
+
+    fun runScenario(title: String, description: String, macroVariables: String) {
+        viewModelScope.launch {
+            isSimulatingScenario.value = true
+            try {
+                repository.runAndSaveScenario(title, description, macroVariables)
+            } catch (e: Exception) {
+                Log.e("FolioViewModel", "Scenario simulation failed: ${e.message}")
+            } finally {
+                isSimulatingScenario.value = false
+            }
+        }
+    }
+
+    fun deleteScenario(id: Int) {
+        viewModelScope.launch {
+            repository.deleteScenario(id)
         }
     }
 

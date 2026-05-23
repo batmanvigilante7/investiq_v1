@@ -8,6 +8,7 @@ import com.example.data.model.MarketEvent
 import com.example.data.model.ThesisSnapshot
 import com.example.data.model.TickerThesis
 import com.example.data.model.WatchlistAlert
+import com.example.data.model.ScenarioSimulation
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.withContext
@@ -18,10 +19,12 @@ class FolioRepository(context: Context) {
     private val eventDao = db.marketEventDao()
     private val snapshotDao = db.thesisSnapshotDao()
     private val alertDao = db.watchlistAlertDao()
+    private val scenarioDao = db.scenarioSimulationDao()
 
     val allTheses: Flow<List<TickerThesis>> = thesisDao.getAllTheses()
     val allEvents: Flow<List<MarketEvent>> = eventDao.getAllEvents()
     val allAlerts: Flow<List<WatchlistAlert>> = alertDao.getAllAlerts()
+    val allScenarios: Flow<List<ScenarioSimulation>> = scenarioDao.getAllScenarios()
 
     fun getThesisBySymbol(symbol: String): Flow<TickerThesis?> {
         return thesisDao.getThesisBySymbol(symbol)
@@ -51,7 +54,9 @@ class FolioRepository(context: Context) {
             relevanceScore = analysis.relevanceScore,
             sentimentScore = analysis.sentimentScore,
             impactReasoning = analysis.whyItMatters,
-            signalClustered = if (analysis.relevanceScore > 85) "CRITICAL SIGNAL" else null
+            signalClustered = if (analysis.relevanceScore > 83) "CRITICAL SIGNAL" else null,
+            socialSentimentScore = analysis.socialSentimentScore,
+            socialSourceBreakdown = analysis.socialSourceBreakdown
         )
 
         val eventId = eventDao.insertEvent(event)
@@ -61,7 +66,7 @@ class FolioRepository(context: Context) {
         val existingThesis = thesisDao.getThesisBySymbolDirect(symbol)
         if (existingThesis != null) {
             val oldScore = existingThesis.convictionScore
-            val formulaScore = (oldScore + analysis.convictionImpact).coerceIn(10, 100)
+            val isWatchlisted = existingThesis.isWatchlisted
 
             // Gather recent events to re-synthesize
             val recentEvents = eventDao.getEventsForSymbolDirect(symbol)
@@ -82,36 +87,39 @@ class FolioRepository(context: Context) {
                 bullPoints = synthesis.bullPoints.joinToString("||"),
                 bearPoints = synthesis.bearPoints.joinToString("||"),
                 riskProfile = synthesis.riskProfile,
-                trajectory = synthesis.trajectory
+                trajectory = synthesis.trajectory,
+                isWatchlisted = isWatchlisted
             )
 
             thesisDao.insertThesis(updatedThesis)
 
-            // Dynamic Alert Generative Logic
+            // Prioritized Watchlist alerts or standard alerts
+            val watchlistPrefix = if (isWatchlisted) "⭐ [WATCHLIST PRIORITIZED] " else ""
+            
             if (synthesis.riskProfile == "CRITICAL" && existingThesis.riskProfile != "CRITICAL") {
                 alertDao.insertAlert(
                     WatchlistAlert(
                         symbol = symbol,
-                        message = "Risk escalation: '$symbol' risk profile elevated to CRITICAL due to recent '${savedEvent.title}'.",
+                        message = "${watchlistPrefix}Risk escalation: '$symbol' risk profile elevated to CRITICAL due to recent '${savedEvent.title}'.",
                         timestamp = System.currentTimeMillis(),
                         severity = "CRITICAL"
                     )
                 )
-            } else if (Math.abs(synthesis.convictionScore - oldScore) >= 6) {
+            } else if (Math.abs(synthesis.convictionScore - oldScore) >= 5 || (isWatchlisted && Math.abs(synthesis.convictionScore - oldScore) >= 2)) {
                 val trend = if (synthesis.convictionScore > oldScore) "surpasses" else "decays to"
                 alertDao.insertAlert(
                     WatchlistAlert(
                         symbol = symbol,
-                        message = "Sharp trajectory shock: Conviction score for $symbol $trend ${synthesis.convictionScore} index.",
+                        message = "${watchlistPrefix}Conviction shock: $symbol conviction score $trend ${synthesis.convictionScore}.",
                         timestamp = System.currentTimeMillis(),
                         severity = if (synthesis.convictionScore > oldScore) "INFO" else "WARNING"
                     )
                 )
-            } else if (savedEvent.relevanceScore > 85) {
+            } else if (savedEvent.relevanceScore > 80) {
                 alertDao.insertAlert(
                     WatchlistAlert(
                         symbol = symbol,
-                        message = "High relevance signal digested: '${savedEvent.title}' on $symbol.",
+                        message = "${watchlistPrefix}High relevance signal digested: '${savedEvent.title}' on $symbol.",
                         timestamp = System.currentTimeMillis(),
                         severity = "INFO"
                     )
@@ -309,5 +317,82 @@ class FolioRepository(context: Context) {
         }
 
         Log.d("FolioRepository", "Terminal seed complete.")
+    }
+
+    suspend fun toggleWatchlist(symbol: String, isWatchlisted: Boolean) = withContext(Dispatchers.IO) {
+        thesisDao.updateWatchlistStatus(symbol, isWatchlisted)
+    }
+
+    suspend fun addCustomTicker(symbol: String, name: String) = withContext(Dispatchers.IO) {
+        val sym = symbol.trim().uppercase()
+        val existing = thesisDao.getThesisBySymbolDirect(sym)
+        if (existing != null) {
+            thesisDao.updateWatchlistStatus(sym, true)
+            return@withContext
+        }
+        
+        val initialThesis = TickerThesis(
+            symbol = sym,
+            name = name.ifEmpty { "$sym Co." },
+            convictionScore = 70,
+            prevConvictionScore = 70,
+            updatedAt = System.currentTimeMillis(),
+            synopsis = "Active Watchlist asset entered by user. Narrative under continuous automated signal ingestion.",
+            bullPoints = "Robust segment growth on targeted operational vectors||Loyal early adopter client base",
+            bearPoints = "Evolving macro capital allocation bounds||Rising component fabrication pricing friction",
+            riskProfile = "MEDIUM",
+            trajectory = "STABLE",
+            isWatchlisted = true
+        )
+        thesisDao.insertThesis(initialThesis)
+        
+        snapshotDao.insertSnapshot(ThesisSnapshot(symbol = sym, convictionScore = 70, timestamp = System.currentTimeMillis()))
+        
+        val startEvent = MarketEvent(
+            symbol = sym,
+            title = "Watchlist Track Begun",
+            sourceType = "Macro Event",
+            content = "Asset '$sym' initialized in portfolio tracker. AI pipeline actively prioritizing alerts and news digests.",
+            timestamp = System.currentTimeMillis(),
+            relevanceScore = 80,
+            sentimentScore = 4,
+            impactReasoning = "Establishes base analytics reporting layer under localized user directives.",
+            socialSentimentScore = 50,
+            socialSourceBreakdown = "X: +40% | Reddit: +35% | Discord: +15%"
+        )
+        eventDao.insertEvent(startEvent)
+    }
+
+    suspend fun runAndSaveScenario(
+        title: String,
+        description: String,
+        macroVariables: String
+    ): ScenarioSimulation = withContext(Dispatchers.IO) {
+        val activeTheses = thesisDao.getAllThesesDirect()
+        val result = GeminiClient.runScenarioSimulation(
+            title = title,
+            description = description,
+            macroVariables = macroVariables,
+            activeTheses = activeTheses
+        )
+        
+        val scoreChangesStr = result.scoreChanges.entries.joinToString("||") { "${it.key}:${it.value}" }
+        
+        val scenario = ScenarioSimulation(
+            title = title,
+            description = description,
+            macroVariables = macroVariables,
+            resultComments = result.resultComments,
+            scoreChanges = scoreChangesStr,
+            portfolioImpact = result.portfolioImpact,
+            timestamp = System.currentTimeMillis()
+        )
+        
+        val id = scenarioDao.insertScenario(scenario)
+        return@withContext scenario.copy(id = id.toInt())
+    }
+
+    suspend fun deleteScenario(id: Int) = withContext(Dispatchers.IO) {
+        scenarioDao.deleteScenario(id)
     }
 }

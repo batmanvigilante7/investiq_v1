@@ -7,6 +7,8 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -63,6 +65,7 @@ fun FolioDashboard(
     val isIngesting by viewModel.isIngesting.collectAsStateWithLifecycle()
 
     var activeTab by remember { mutableStateOf("THESIS") }
+    var showAddTickerDialog by remember { mutableStateOf(false) }
 
     Scaffold(
         modifier = modifier.fillMaxSize().background(HorizonBlack),
@@ -94,7 +97,9 @@ fun FolioDashboard(
             TickerSelectorRow(
                 theses = theses,
                 selectedSymbol = selectedSymbol,
-                onSelected = { viewModel.selectSymbol(it) }
+                onSelected = { viewModel.selectSymbol(it) },
+                onToggleWatchlist = { sym, watched -> viewModel.toggleWatchlist(sym, watched) },
+                onAddTickerClick = { showAddTickerDialog = true }
             )
 
             // Main Tab Contents
@@ -109,7 +114,8 @@ fun FolioDashboard(
                         thesis = activeThesis,
                         snapshots = activeSnapshots,
                         events = events.filter { it.symbol == selectedSymbol },
-                        isKeyValid = GeminiClient.isKeyValid()
+                        isKeyValid = GeminiClient.isKeyValid(),
+                        onToggleWatchlist = { sym, watched -> viewModel.toggleWatchlist(sym, watched) }
                     )
                     "PIPELINE" -> PipelineTabContent(
                         events = events,
@@ -117,6 +123,9 @@ fun FolioDashboard(
                         selectedSymbol = selectedSymbol,
                         onInject = { sys, src, raw -> viewModel.ingestCustomEvent(sys, src, raw) },
                         onClear = { viewModel.clearHistory() }
+                    )
+                    "WHAT-IF" -> WhatIfTabContent(
+                        viewModel = viewModel
                     )
                     "ALERTS" -> AlertsTabContent(
                         alerts = alerts,
@@ -128,6 +137,16 @@ fun FolioDashboard(
                 }
             }
         }
+    }
+
+    if (showAddTickerDialog) {
+        AddTickerDialog(
+            onDismiss = { showAddTickerDialog = false },
+            onSubmit = { sym, name ->
+                viewModel.addCustomTicker(sym, name)
+                showAddTickerDialog = false
+            }
+        )
     }
 }
 
@@ -316,7 +335,9 @@ fun TerminalHeader(
 fun TickerSelectorRow(
     theses: List<TickerThesis>,
     selectedSymbol: String,
-    onSelected: (String) -> Unit
+    onSelected: (String) -> Unit,
+    onToggleWatchlist: (String, Boolean) -> Unit,
+    onAddTickerClick: () -> Unit
 ) {
     Row(
         modifier = Modifier
@@ -325,72 +346,120 @@ fun TickerSelectorRow(
             .border(1.dp, GridBorder, RoundedCornerShape(12.dp))
             .background(TerminalCoal)
             .padding(4.dp),
-        horizontalArrangement = Arrangement.spacedBy(6.dp)
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        theses.forEach { thesis ->
-            val isSelected = thesis.symbol == selectedSymbol
-            
-            val trColor = when (thesis.trajectory) {
-                "UPGOING" -> CyberGreen
-                "DOWNGOING" -> CyberRed
-                else -> CyberAmber
-            }
-            
-            Box(
-                modifier = Modifier
-                    .weight(1f)
-                    .clip(RoundedCornerShape(10.dp))
-                    .background(if (isSelected) Color.White else Color.Transparent)
-                    .border(1.dp, if (isSelected) Color.White else GridBorder, RoundedCornerShape(10.dp))
-                    .clickable { onSelected(thesis.symbol) }
-                    .padding(vertical = 10.dp)
-                    .testTag("ticker_select_${thesis.symbol}"),
-                contentAlignment = Alignment.Center
-            ) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.Center
-                    ) {
-                        Text(
-                            text = thesis.symbol,
-                            fontFamily = FontFamily.Monospace,
-                            fontWeight = FontWeight.Black,
-                            fontSize = 13.sp,
-                            color = if (isSelected) Color(0xFF0A0A0B) else Color.White
-                        )
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text(
-                            text = when (thesis.trajectory) {
-                                "UPGOING" -> "▲"
-                                "DOWNGOING" -> "▼"
-                                else -> "▶"
-                            },
-                            fontFamily = FontFamily.Monospace,
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 9.sp,
-                            color = if (isSelected) Color(0xFF0A0A0B) else trColor
-                        )
-                    }
-                    Spacer(modifier = Modifier.height(2.dp))
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(
-                            text = "CIV:",
-                            fontFamily = FontFamily.Monospace,
-                            fontSize = 8.sp,
-                            color = if (isSelected) Color(0xFF64748B) else TextGray
-                        )
-                        Spacer(modifier = Modifier.width(2.dp))
-                        Text(
-                            text = "${thesis.convictionScore}",
-                            fontFamily = FontFamily.Monospace,
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 10.sp,
-                            color = if (isSelected) Color(0xFF0A0A0B) else CyberGreen
-                        )
+        Row(
+            modifier = Modifier
+                .weight(1f)
+                .horizontalScroll(rememberScrollState()),
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            theses.forEach { thesis ->
+                val isSelected = thesis.symbol == selectedSymbol
+                
+                val trColor = when (thesis.trajectory) {
+                    "UPGOING" -> CyberGreen
+                    "DOWNGOING" -> CyberRed
+                    else -> CyberAmber
+                }
+                
+                Box(
+                    modifier = Modifier
+                        .width(105.dp)
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(if (isSelected) Color.White else Color.Transparent)
+                        .border(1.dp, if (isSelected) Color.White else GridBorder, RoundedCornerShape(10.dp))
+                        .clickable { onSelected(thesis.symbol) }
+                        .padding(vertical = 8.dp, horizontal = 8.dp)
+                        .testTag("ticker_select_${thesis.symbol}"),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(
+                                    text = thesis.symbol,
+                                    fontFamily = FontFamily.Monospace,
+                                    fontWeight = FontWeight.Black,
+                                    fontSize = 12.sp,
+                                    color = if (isSelected) Color(0xFF0A0A0B) else Color.White
+                                )
+                                Spacer(modifier = Modifier.width(3.dp))
+                                Text(
+                                    text = when (thesis.trajectory) {
+                                        "UPGOING" -> "▲"
+                                        "DOWNGOING" -> "▼"
+                                        else -> "▶"
+                                    },
+                                    fontFamily = FontFamily.Monospace,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 8.sp,
+                                    color = if (isSelected) Color(0xFF0A0A0B) else trColor
+                                )
+                            }
+                            
+                            Icon(
+                                imageVector = Icons.Default.Star,
+                                contentDescription = "Watchlist status",
+                                tint = if (isSelected) {
+                                    if (thesis.isWatchlisted) Color(0xFFEAB308) else Color(0xFF64748B).copy(alpha = 0.3f)
+                                } else {
+                                    if (thesis.isWatchlisted) CyberAmber else TextGray.copy(alpha = 0.3f)
+                                },
+                                modifier = Modifier
+                                    .size(14.dp)
+                                    .clickable { onToggleWatchlist(thesis.symbol, !thesis.isWatchlisted) }
+                                    .testTag("star_toggle_${thesis.symbol}")
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.Start,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text(
+                                text = "CIV:",
+                                fontFamily = FontFamily.Monospace,
+                                fontSize = 8.sp,
+                                color = if (isSelected) Color(0xFF64748B) else TextGray
+                            )
+                            Spacer(modifier = Modifier.width(2.dp))
+                            Text(
+                                text = "${thesis.convictionScore}",
+                                fontFamily = FontFamily.Monospace,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 10.sp,
+                                color = if (isSelected) Color(0xFF0A0A0B) else CyberGreen
+                            )
+                        }
                     }
                 }
             }
+        }
+        
+        Box(
+            modifier = Modifier
+                .size(38.dp)
+                .clip(RoundedCornerShape(8.dp))
+                .background(ModuleSlate)
+                .border(1.dp, GridBorder, RoundedCornerShape(8.dp))
+                .clickable { onAddTickerClick() }
+                .testTag("add_ticker_icon_button"),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = Icons.Default.Add,
+                contentDescription = "Track custom stock symbol",
+                tint = CyberCyan,
+                modifier = Modifier.size(18.dp)
+            )
         }
     }
 }
@@ -400,7 +469,8 @@ fun ThesisTabContent(
     thesis: TickerThesis?,
     snapshots: List<ThesisSnapshot>,
     events: List<MarketEvent>,
-    isKeyValid: Boolean
+    isKeyValid: Boolean,
+    onToggleWatchlist: (String, Boolean) -> Unit
 ) {
     if (thesis == null) {
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -495,6 +565,18 @@ fun ThesisTabContent(
                                     color = TextGray
                                 )
                             )
+                            
+                            IconButton(
+                                onClick = { onToggleWatchlist(thesis.symbol, !thesis.isWatchlisted) },
+                                modifier = Modifier.size(32.dp).testTag("header_watchlist_star")
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Star,
+                                    contentDescription = "Toggle watchlist",
+                                    tint = if (thesis.isWatchlisted) CyberAmber else TextGray.copy(alpha = 0.3f),
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
                         }
 
                         // level pill indicators from HTML theme
@@ -1211,6 +1293,58 @@ fun EventPipelineRow(event: MarketEvent) {
                     overflow = TextOverflow.Ellipsis
                 )
             }
+
+            if (event.socialSentimentScore != 0 || event.socialSourceBreakdown.isNotEmpty()) {
+                Spacer(modifier = Modifier.height(10.dp))
+                Card(
+                    modifier = Modifier.fillMaxWidth().testTag("social_sentiment_card_${event.id}"),
+                    colors = CardDefaults.cardColors(containerColor = HorizonBlack),
+                    border = borderColor(GridBorder.copy(alpha = 0.4f))
+                ) {
+                    Column(modifier = Modifier.padding(10.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                Text(
+                                    text = "🌐 SOCIAL SENTIMENT INDEX:",
+                                    style = TextStyle(fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold, fontSize = 8.sp, color = CyberCyan)
+                                )
+                                val sScore = event.socialSentimentScore
+                                Text(
+                                    text = if (sScore > 0) "+$sScore" else "$sScore",
+                                    fontFamily = FontFamily.Monospace,
+                                    fontWeight = FontWeight.Black,
+                                    fontSize = 11.sp,
+                                    color = if (sScore > 20) CyberGreen else if (sScore < -20) CyberRed else CyberAmber
+                                )
+                            }
+                            
+                            Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                                Box(modifier = Modifier.background(Color.White.copy(alpha = 0.08f), RoundedCornerShape(2.dp)).padding(horizontal = 4.dp, vertical = 2.dp)) {
+                                    Text("X", fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Black, fontSize = 8.sp, color = Color.White)
+                                }
+                                Box(modifier = Modifier.background(CyberRed.copy(alpha = 0.08f), RoundedCornerShape(2.dp)).padding(horizontal = 4.dp, vertical = 2.dp)) {
+                                    Text("Reddit", fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Black, fontSize = 8.sp, color = CyberRed)
+                                }
+                                Box(modifier = Modifier.background(CyberCyan.copy(alpha = 0.08f), RoundedCornerShape(2.dp)).padding(horizontal = 4.dp, vertical = 2.dp)) {
+                                    Text("Discord", fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Black, fontSize = 8.sp, color = CyberCyan)
+                                }
+                            }
+                        }
+                        
+                        if (event.socialSourceBreakdown.isNotEmpty()) {
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                text = "BREAKDOWN: ${event.socialSourceBreakdown}",
+                                style = TextStyle(fontFamily = FontFamily.Monospace, fontSize = 9.sp, color = TextGray)
+                            )
+                        }
+                    }
+                }
+            }
         }
     }
 }
@@ -1708,6 +1842,7 @@ fun TerminalNavBar(
     val tabList = listOf(
         TabItem("THESIS", Icons.Default.Info, "Thesis Matrices"),
         TabItem("PIPELINE", Icons.Default.List, "News Ingestion"),
+        TabItem("WHAT-IF", Icons.Default.Settings, "Scenario Sandbox"),
         TabItem("COPILOT", Icons.Default.Face, "Copilot AI"),
         TabItem("ALERTS", Icons.Default.Notifications, "Adaptive Alerts")
     )
@@ -1767,4 +1902,472 @@ private data class TabItem(val id: String, val icon: androidx.compose.ui.graphic
 
 @Composable
 private fun borderColor(color: Color) = ButtonDefaults.outlinedButtonBorder.copy(brush = Brush.linearGradient(listOf(color, color)))
+
+@Composable
+fun SegmentedPicker(
+    label: String,
+    options: List<String>,
+    selected: String,
+    onSelected: (String) -> Unit
+) {
+    Column {
+        Text(
+            text = label,
+            fontFamily = FontFamily.Monospace,
+            fontWeight = FontWeight.Bold,
+            fontSize = 9.sp,
+            color = TextGray
+        )
+        Spacer(modifier = Modifier.height(6.dp))
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .border(1.dp, GridBorder, RoundedCornerShape(6.dp))
+                .background(HorizonBlack)
+                .padding(2.dp),
+            horizontalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            options.forEach { opt ->
+                val active = selected == opt
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .clip(RoundedCornerShape(4.dp))
+                        .background(if (active) CyberCyan.copy(alpha = 0.15f) else Color.Transparent)
+                        .border(1.dp, if (active) CyberCyan else Color.Transparent, RoundedCornerShape(4.dp))
+                        .clickable { onSelected(opt) }
+                        .padding(vertical = 8.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = opt,
+                        fontFamily = FontFamily.Monospace,
+                        fontWeight = if (active) FontWeight.Black else FontWeight.Bold,
+                        fontSize = 10.sp,
+                        color = if (active) Color.White else TextGray
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun WhatIfTabContent(
+    viewModel: FolioViewModel
+) {
+    val scenarios by viewModel.scenarios.collectAsStateWithLifecycle()
+    val isSimulating by viewModel.isSimulatingScenario.collectAsStateWithLifecycle()
+
+    var title by remember { mutableStateOf("") }
+    var description by remember { mutableStateOf("") }
+    var ratesState by remember { mutableStateOf("Rates: Unchanged") }
+    var demandState by remember { mutableStateOf("Demand: Unchanged") }
+    var supplyState by remember { mutableStateOf("Supply Costs: Neutral") }
+
+    val rateOptions = listOf("Rates: -0.50% (Cut)", "Rates: Unchanged", "Rates: +0.75% (Hike)")
+    val demandOptions = listOf("Demand: -15% (Contract)", "Demand: Unchanged", "Demand: +20% (Expand)")
+    val supplyOptions = listOf("Supply Costs: -10%", "Supply Costs: Neutral", "Supply Costs: +25% (Strain)")
+
+    LazyColumn(
+        modifier = Modifier.fillMaxSize().testTag("sandbox_scrollable_container"),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        // Core Control Console Card
+        item {
+            Card(
+                modifier = Modifier.fillMaxWidth().testTag("sandbox_control_console"),
+                colors = CardDefaults.cardColors(containerColor = TerminalCoal),
+                shape = RoundedCornerShape(24.dp),
+                border = borderColor(GridBorder)
+            ) {
+                Column(modifier = Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(24.dp)
+                                .background(CyberCyan.copy(alpha = 0.15f), RoundedCornerShape(6.dp)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(Icons.Default.Settings, contentDescription = "Sandbox", tint = CyberCyan, modifier = Modifier.size(13.dp))
+                        }
+                        Text(
+                            text = "STRATEGIC WHAT-IF SANDBOX",
+                            fontFamily = FontFamily.Monospace,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 11.sp,
+                            letterSpacing = 1.sp,
+                            color = CyberCyan
+                        )
+                    }
+
+                    Text(
+                        text = "Simulate how major macroeconomic shifts or hypothetical localized catastrophes affect existing investment bases, narrative conviction levels, and relative portfolio vectors.",
+                        fontSize = 11.sp,
+                        color = TextGray
+                    )
+
+                    // Text Input fields
+                    OutlinedTextField(
+                        value = title,
+                        onValueChange = { title = it.take(45) },
+                        label = { Text("SIMULATION NAME (e.g., Regional Power Outage)", fontFamily = FontFamily.Monospace, fontSize = 9.sp) },
+                        textStyle = TextStyle(fontFamily = FontFamily.Monospace, color = Color.White, fontSize = 12.sp),
+                        modifier = Modifier.fillMaxWidth().testTag("scenario_title_input"),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = CyberCyan,
+                            unfocusedBorderColor = GridBorder,
+                            focusedLabelColor = CyberCyan,
+                            unfocusedLabelColor = TextGray
+                        )
+                    )
+
+                    OutlinedTextField(
+                        value = description,
+                        onValueChange = { description = it.take(150) },
+                        label = { Text("SCENARIO STATEMENT (e.g., Storm damage shuts Silicon Valley grid)", fontFamily = FontFamily.Monospace, fontSize = 9.sp) },
+                        textStyle = TextStyle(fontFamily = FontFamily.Monospace, color = Color.White, fontSize = 12.sp),
+                        modifier = Modifier.fillMaxWidth().height(84.dp).testTag("scenario_desc_input"),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = CyberCyan,
+                            unfocusedBorderColor = GridBorder,
+                            focusedLabelColor = CyberCyan,
+                            unfocusedLabelColor = TextGray
+                        )
+                    )
+
+                    // Macro segmented pickers
+                    SegmentedPicker(
+                        label = "FEDERAL CAPITAL INTEREST RATE BOUNDS",
+                        options = rateOptions,
+                        selected = ratesState,
+                        onSelected = { ratesState = it }
+                    )
+
+                    SegmentedPicker(
+                        label = "GLOBAL ENTERPRISE CONSUMER DEMAND SHIFT",
+                        options = demandOptions,
+                        selected = demandState,
+                        onSelected = { demandState = it }
+                    )
+
+                    SegmentedPicker(
+                        label = "SUPPLY CHAIN FABRICATION OVERHEADS CARRIER",
+                        options = supplyOptions,
+                        selected = supplyState,
+                        onSelected = { supplyState = it }
+                    )
+
+                    // Trigger button
+                    Button(
+                        onClick = {
+                            if (title.isNotBlank() && description.isNotBlank()) {
+                                val vars = "Rates:$ratesState||Demand:$demandState||Supply:$supplyState"
+                                viewModel.runScenario(title, description, vars)
+                                // Clean fields
+                                title = ""
+                                description = ""
+                            }
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = CyberCyan, contentColor = Color.Black),
+                        shape = RoundedCornerShape(8.dp),
+                        enabled = title.isNotBlank() && description.isNotBlank() && !isSimulating,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(44.dp)
+                            .testTag("run_scenario_simulation_button")
+                    ) {
+                        Text(
+                            text = "EXECUTE SANDBOX REPORT [RUN_MATRIX]",
+                            fontFamily = FontFamily.Monospace,
+                            fontWeight = FontWeight.Black,
+                            fontSize = 11.sp,
+                            letterSpacing = 0.5.sp
+                        )
+                    }
+                }
+            }
+        }
+
+        // Live Thinking / Loading Box
+        if (isSimulating) {
+            item {
+                Card(
+                    modifier = Modifier.fillMaxWidth().testTag("sandbox_simulating_progress"),
+                    colors = CardDefaults.cardColors(containerColor = TerminalCoal),
+                    border = borderColor(CyberCyan)
+                ) {
+                    Column(
+                        modifier = Modifier.padding(20.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center
+                    ) {
+                        CircularProgressIndicator(color = CyberCyan, modifier = Modifier.size(24.dp))
+                        Spacer(modifier = Modifier.height(12.dp))
+                        Text(
+                            text = "RUNNING MONTE CARLO COGNITIVE SIMULATIONS...",
+                            fontFamily = FontFamily.Monospace,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 10.sp,
+                            color = CyberCyan
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = "Orchestrating stress pricing model delta calculations across portfolio bases via Gemini API pipeline.",
+                            fontSize = 11.sp,
+                            color = TextGray,
+                            textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                        )
+                    }
+                }
+            }
+        }
+
+        // Historic Simulations Title Banner
+        if (scenarios.isNotEmpty()) {
+            item {
+                Text(
+                    text = "PAST SIMULATION RUNS HISTORY",
+                    fontFamily = FontFamily.Monospace,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 10.sp,
+                    letterSpacing = 1.2.sp,
+                    color = TextGray,
+                    modifier = Modifier.padding(top = 10.dp)
+                )
+            }
+
+            items(scenarios.sortedByDescending { it.timestamp }) { scen ->
+                Card(
+                    modifier = Modifier.fillMaxWidth().testTag("scenario_card_${scen.id}"),
+                    colors = CardDefaults.cardColors(containerColor = TerminalCoal),
+                    border = borderColor(GridBorder)
+                ) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = scen.title.uppercase(),
+                                fontFamily = FontFamily.Monospace,
+                                fontWeight = FontWeight.Black,
+                                fontSize = 13.sp,
+                                color = Color.White
+                            )
+
+                            IconButton(
+                                onClick = { viewModel.deleteScenario(scen.id) },
+                                modifier = Modifier.size(28.dp).testTag("delete_scenario_${scen.id}")
+                            ) {
+                                Icon(Icons.Default.Delete, contentDescription = "Delete simulation result", tint = CyberRed, modifier = Modifier.size(16.dp))
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = scen.description,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = Color.White.copy(alpha = 0.85f)
+                        )
+
+                        // Render Macro Parameter Tags
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                            modifier = Modifier.fillMaxWidth(),
+                        ) {
+                            scen.macroVariables.split("||").forEach { v ->
+                                val tagVal = v.substringAfter(":")
+                                Box(
+                                    modifier = Modifier
+                                        .background(Color.White.copy(alpha = 0.05f), RoundedCornerShape(4.dp))
+                                        .border(1.dp, GridBorder, RoundedCornerShape(4.dp))
+                                        .padding(horizontal = 6.dp, vertical = 2.dp)
+                                ) {
+                                    Text(
+                                        text = tagVal.uppercase(),
+                                        fontFamily = FontFamily.Monospace,
+                                        fontSize = 8.sp,
+                                        color = CyberCyan
+                                    )
+                                }
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(10.dp))
+                        HorizontalDivider(color = GridBorder.copy(alpha = 0.4f))
+                        Spacer(modifier = Modifier.height(10.dp))
+
+                        // Portfolio Impact Statement
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                text = "PORTFOLIO IMPACT: ",
+                                fontFamily = FontFamily.Monospace,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 9.sp,
+                                color = CyberCyan
+                            )
+                            val impStr = scen.portfolioImpact
+                            Text(
+                                text = impStr,
+                                fontFamily = FontFamily.Monospace,
+                                fontWeight = FontWeight.Black,
+                                fontSize = 12.sp,
+                                color = if (impStr.contains("Positive", ignoreCase = true)) CyberGreen else if (impStr.contains("Negative", ignoreCase = true)) CyberRed else CyberAmber
+                            )
+                        }
+
+                        // Score shifts section
+                        Spacer(modifier = Modifier.height(10.dp))
+                        Text(
+                            text = "CONVICTION SCORE ADJUSTMENT ESTIMATION:",
+                            fontFamily = FontFamily.Monospace,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 8.sp,
+                            color = TextGray
+                        )
+                        Spacer(modifier = Modifier.height(6.dp))
+
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState())
+                        ) {
+                            scen.scoreChanges.split("||").filter { it.contains(":") }.forEach { entry ->
+                                val sym = entry.substringBefore(":")
+                                val changeVal = entry.substringAfter(":").toIntOrNull() ?: 0
+                                val itemCol = if (changeVal > 0) CyberGreen else if (changeVal < 0) CyberRed else CyberAmber
+
+                                Box(
+                                    modifier = Modifier
+                                        .border(1.dp, itemCol.copy(alpha = 0.5f), RoundedCornerShape(6.dp))
+                                        .background(itemCol.copy(alpha = 0.05f))
+                                        .padding(horizontal = 8.dp, vertical = 4.dp)
+                                ) {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Text(
+                                            text = sym,
+                                            fontFamily = FontFamily.Monospace,
+                                            fontWeight = FontWeight.Black,
+                                            fontSize = 9.sp,
+                                            color = Color.White
+                                        )
+                                        Spacer(modifier = Modifier.width(4.dp))
+                                        Text(
+                                            text = if (changeVal > 0) "+$changeVal" else "$changeVal",
+                                            fontFamily = FontFamily.Monospace,
+                                            fontWeight = FontWeight.Bold,
+                                            fontSize = 10.sp,
+                                            color = itemCol
+                                        )
+                                    }
+                                }
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(10.dp))
+                        Text(
+                            text = scen.resultComments,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = TextGray
+                        )
+                    }
+                }
+            }
+        }
+        
+        item {
+            Spacer(modifier = Modifier.height(30.dp))
+        }
+    }
+}
+
+@Composable
+fun AddTickerDialog(
+    onDismiss: () -> Unit,
+    onSubmit: (String, String) -> Unit
+) {
+    var symbol by remember { mutableStateOf("") }
+    var name by remember { mutableStateOf("") }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(
+                "WATCHLIST: TRACK NEW TICKER",
+                fontFamily = FontFamily.Monospace,
+                fontWeight = FontWeight.Bold,
+                fontSize = 14.sp,
+                color = CyberCyan
+            )
+        },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Text(
+                    "Integrate a new asset into FolioAI's ingestion pipeline. The AI will immediately formulate its baseline thesis and prioritize matching alerts.",
+                    fontSize = 11.sp,
+                    color = TextGray
+                )
+                
+                OutlinedTextField(
+                    value = symbol,
+                    onValueChange = { symbol = it.take(6).uppercase() },
+                    label = { Text("TICKER SYMBOL (e.g. AMZN)", fontFamily = FontFamily.Monospace, fontSize = 10.sp) },
+                    textStyle = TextStyle(fontFamily = FontFamily.Monospace, color = Color.White, fontSize = 12.sp),
+                    modifier = Modifier.fillMaxWidth().testTag("add_ticker_symbol_input"),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = CyberCyan,
+                        unfocusedBorderColor = GridBorder,
+                        focusedLabelColor = CyberCyan,
+                        unfocusedLabelColor = TextGray
+                    )
+                )
+
+                OutlinedTextField(
+                    value = name,
+                    onValueChange = { name = it.take(30) },
+                    label = { Text("COMPANY NAME (e.g. Amazon.com)", fontFamily = FontFamily.Monospace, fontSize = 10.sp) },
+                    textStyle = TextStyle(fontFamily = FontFamily.Monospace, color = Color.White, fontSize = 12.sp),
+                    modifier = Modifier.fillMaxWidth().testTag("add_ticker_name_input"),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = CyberCyan,
+                        unfocusedBorderColor = GridBorder,
+                        focusedLabelColor = CyberCyan,
+                        unfocusedLabelColor = TextGray
+                    )
+                )
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = {
+                    if (symbol.isNotBlank()) {
+                        onSubmit(symbol, name)
+                    }
+                },
+                colors = ButtonDefaults.buttonColors(containerColor = CyberCyan, contentColor = Color.Black),
+                shape = RoundedCornerShape(2.dp),
+                enabled = symbol.isNotBlank(),
+                modifier = Modifier.testTag("submit_add_ticker_btn")
+            ) {
+                Text("ADD TICKER", fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold)
+            }
+        },
+        dismissButton = {
+            Button(
+                onClick = onDismiss,
+                colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent, contentColor = Color.White),
+                shape = RoundedCornerShape(2.dp)
+            ) {
+                Text("CANCEL", fontFamily = FontFamily.Monospace)
+            }
+        },
+        containerColor = TerminalCoal,
+        shape = RoundedCornerShape(4.dp)
+    )
+}
 
